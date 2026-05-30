@@ -24,11 +24,11 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         self.base_mask = tf.constant(np.tile(base_mask, (self.B, 1, 1)))       # [B, N, N]
         self.static_delay = tf.constant(np.tile(delay_mat, (self.B, 1, 1)))    # [B, N, N]
         self.max_capacity = tf.constant(np.tile(cap_mat, (self.B, 1, 1)))      # [B, N, N]
-        
-        # Biến trạng thái động (Dynamic States) lưu trên VRAM
-        self.current_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
-        self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False) # Dùng để Rollback siêu tốc
-        self.fail_count = tf.Variable(tf.zeros([self.B], dtype=tf.int32), trainable=False)
+        with tf.device('/GPU:0'):
+            # Biến trạng thái động (Dynamic States) lưu trên VRAM
+            self.current_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
+            self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False) # Dùng để Rollback siêu tốc
+            self.fail_count = tf.Variable(tf.zeros([self.B], dtype=tf.int32), trainable=False)
 
     def reset_all_bandwidth(self):
         """ Reset vật lý toàn bộ mạng """
