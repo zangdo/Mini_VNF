@@ -117,22 +117,21 @@ def evaluate_model(agent, env, num_episodes=5):
 # ==========================================
 # VÒNG LẶP HUẤN LUYỆN CHÍNH TRÊN GPU
 # ==========================================
-
-while True: 
+while update_step < Config.NUM_EPOCHS:
     update_step += 1
     print(f"🔥 [Update {update_step}] Đang thả 1024 môi trường cày cuốc trên GPU...")
     
     # 1. TRAIN BATCHED PPO TRÊN GPU (Gồm cả Rollout và Train cực nhanh)
     # 1 Epoch lớn này tương đương thu thập 131,072 Transitions!
-    loss_metrics = agent.learn(train_env, num_steps=128, ppo_epochs=8, minibatch_size=8192)
+    loss_metrics = agent.learn(train_env, num_steps=Config.NUM_STEPS, ppo_epochs=Config.PPO_EPOCHS, minibatch_size=Config.MINIBATCH_SIZE)
     
     print(f"✅ Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
     
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     # (Đo xem nó đã thực sự khôn ra chưa)
     print("⏳ Đang làm bài thi đánh giá năng lực...")
-    test_acc_rate = evaluate_model(agent, test_env, num_episodes=5)
-    print(f"🎯 KẾT QUẢ BÀI THI: Acceptance Rate trung bình (5 Test Episodes) = {test_acc_rate:.2f}%\n")
+    test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST)
+    print(f"🎯 KẾT QUẢ BÀI THI: Acceptance Rate trung bình ({Config.NUM_EPISODES_TEST} Test Episodes) = {test_acc_rate:.2f}%\n")
     
     # 3. LƯU MODEL MỖI 100 UPDATE
     if update_step % 100 == 0:

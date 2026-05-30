@@ -47,12 +47,14 @@ class BatchedPPOAgent:
         """
         B = env.B
         
-        # Khởi tạo Dictionary chứa TensorArray cho từng thành phần của State
-        state_keys = ['A_bw', 'A_delay', 'bw_req', 'remain_time', 'valid_mask', 'curr_node', 'dst_node']
-        ta_states = {}
-        for k in state_keys:
-            dtype = tf.int32 if k in ['curr_node', 'dst_node'] else tf.float32
-            ta_states[k] = tf.TensorArray(dtype=dtype, size=num_steps)
+        # BỎ TỪ ĐIỂN, DÙNG BIẾN RỜI ĐỂ AUTOGRAPH THEO DÕI ĐƯỢC SCOPE
+        ta_A_bw = tf.TensorArray(dtype=tf.float32, size=num_steps)
+        ta_A_delay = tf.TensorArray(dtype=tf.float32, size=num_steps)
+        ta_bw_req = tf.TensorArray(dtype=tf.float32, size=num_steps)
+        ta_remain_time = tf.TensorArray(dtype=tf.float32, size=num_steps)
+        ta_valid_mask = tf.TensorArray(dtype=tf.float32, size=num_steps)
+        ta_curr_node = tf.TensorArray(dtype=tf.int32, size=num_steps)
+        ta_dst_node = tf.TensorArray(dtype=tf.int32, size=num_steps)
             
         ta_actions = tf.TensorArray(dtype=tf.int32, size=num_steps)
         ta_logprobs = tf.TensorArray(dtype=tf.float32, size=num_steps)
@@ -63,9 +65,14 @@ class BatchedPPOAgent:
         for t in tf.range(num_steps):
             state = env._get_state_dict()
             
-            # Lưu state hiện tại vào mảng
-            for k in state_keys:
-                ta_states[k] = ta_states[k].write(t, state[k])
+            # Ghi state vào từng biến TensorArray rời rạc
+            ta_A_bw = ta_A_bw.write(t, state['A_bw'])
+            ta_A_delay = ta_A_delay.write(t, state['A_delay'])
+            ta_bw_req = ta_bw_req.write(t, state['bw_req'])
+            ta_remain_time = ta_remain_time.write(t, state['remain_time'])
+            ta_valid_mask = ta_valid_mask.write(t, state['valid_mask'])
+            ta_curr_node = ta_curr_node.write(t, state['curr_node'])
+            ta_dst_node = ta_dst_node.write(t, state['dst_node'])
                 
             # Model phán đoán
             action_probs, masked_logits, v_vals = self.model(state)
@@ -79,7 +86,7 @@ class BatchedPPOAgent:
             # Step môi trường
             next_state, rewards, dones = env.step(actions)
             
-            # Ghi chép vết
+            # Ghi chép vết các thông số khác
             ta_actions = ta_actions.write(t, tf.cast(actions, tf.int32))
             ta_logprobs = ta_logprobs.write(t, logprobs)
             ta_rewards = ta_rewards.write(t, tf.cast(rewards, tf.float32))
@@ -91,8 +98,16 @@ class BatchedPPOAgent:
         _, _, next_v = self.model(final_state)
         next_v = tf.squeeze(next_v, axis=-1)
         
-        # Đóng gói toàn bộ TensorArray thành Tensor [Time, Batch, ...]
-        stacked_states = {k: ta_states[k].stack() for k in state_keys}
+        # Đóng gói lại thành Dictionary SAU KHI vòng lặp đã kết thúc hoàn toàn
+        stacked_states = {
+            'A_bw': ta_A_bw.stack(),
+            'A_delay': ta_A_delay.stack(),
+            'bw_req': ta_bw_req.stack(),
+            'remain_time': ta_remain_time.stack(),
+            'valid_mask': ta_valid_mask.stack(),
+            'curr_node': ta_curr_node.stack(),
+            'dst_node': ta_dst_node.stack()
+        }
         
         return (
             stacked_states,
@@ -103,7 +118,6 @@ class BatchedPPOAgent:
             ta_dones.stack(),
             next_v
         )
-
     def make_dataset_generator(self, flat_states, flat_actions, flat_logprobs, flat_advs, flat_returns, batch_size):
         """ 
         Generator đẻ Minibatch siêu tốc chuẩn TensorFlow (Thay thế Dataloader/Buffer).
@@ -183,7 +197,8 @@ class BatchedPPOAgent:
         adv_tensor, ret_tensor = self.compute_gae_gpu(b_rewards, b_values, b_dones, next_v)
         
         # 3. Flatten toàn bộ Tensor (Gộp chiều Time và chiều Batch)
-        flat_states = {k: tf.reshape(v, [-1] + v.shape[2:]) for k, v in b_states.items()}
+        # SỬA LẠI DÒNG NÀY: Thêm .as_list() vào v.shape
+        flat_states = {k: tf.reshape(v, [-1] + v.shape.as_list()[2:]) for k, v in b_states.items()}
         flat_actions = tf.reshape(b_actions, [-1])
         flat_logprobs = tf.reshape(b_logprobs, [-1])
         flat_advs = tf.reshape(adv_tensor, [-1])

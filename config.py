@@ -13,9 +13,11 @@ class Config:
     NUM_GCN_LAYERS = 3
     
     # --- THÔNG SỐ PPO (A100 Tối ưu) ---
-    ROLLOUT_SIZE = 2048    # Số data gom trước khi Train
-    MINIBATCH_SIZE = 256   # Kích thước 1 mẻ đưa vào GPU
-    PPO_EPOCHS = 4         # Số lần nhai lại 1 mẻ data
+    NUM_EPOCHS = 1000
+    BATCH_SIZE = 1024     # Số lượng môi trường song song trên GPU
+    MINIBATCH_SIZE =  8192  # Kích thước 1 mẻ đưa vào GPU
+    PPO_EPOCHS = 8         # Số lần nhai lại 1 mẻ data
+    NUM_STEPS = 128       # Số bước thu thập dữ liệu trước khi cập nhật (128 x 1024 = 131,072 transitions)
     LR = 3e-4
     GAMMA = 0.99
     LAMBDA = 0.95
@@ -23,3 +25,6 @@ class Config:
     
     # --- ĐIỀU KIỆN MÔI TRƯỜNG ---
     MAX_FAILURES = 10      # Số lần chết liên tục trước khi Reset Map
+
+    # ---TEST---
+    NUM_EPISODES_TEST = 10
