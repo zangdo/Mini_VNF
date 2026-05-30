@@ -6,7 +6,7 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         super().__init__()
         self.num_nodes = num_nodes
         self.B = batch_size
-        self.num_failures = num_failures
+        self.num_failures = float(num_failures)
 
         # Khởi tạo ma trận vật lý dạng Numpy
         base_mask = np.zeros((num_nodes, num_nodes), dtype=np.float32)
@@ -28,7 +28,9 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         # Biến trạng thái động (Dynamic States) lưu trên VRAM
         self.current_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
         self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False) # Dùng để Rollback siêu tốc
-        self.fail_count = tf.Variable(tf.zeros([self.B], dtype=tf.int32), trainable=False)
+        # SỬA Ở ĐÂY: Đổi int32 thành float32
+        zero_fails = tf.zeros([self.B], dtype=tf.float32)
+        self.fail_count = tf.Variable(zero_fails, trainable=False)
 
     def reset_all_bandwidth(self):
         """ Reset vật lý toàn bộ mạng """
@@ -180,10 +182,10 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         # 4. CẬP NHẬT FAIL_COUNT VÀ CHECK HARD RESET
         # ==========================================
         # Logic: Nếu DeadEnd thì +1, nếu Success thì reset về 0, nếu đang đi (In_Progress) thì giữ nguyên
-        updated_fail_count = tf.where(is_deadend, self.fail_count + 1,
-                             tf.where(is_success, 0, self.fail_count))
+        updated_fail_count = tf.where(is_deadend, self.fail_count + 1.0,
+                             tf.where(is_success, 0.0, self.fail_count))
         
-        # Check xem ông nào tích lũy đủ 10 lần tạch
+        # SỬA Ở ĐÂY: Dùng 10.0 thay vì 10
         needs_hard_reset = updated_fail_count >= self.num_failures
         
         # ==========================================
@@ -206,7 +208,7 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         self.snapshot_bw_matrix.assign(final_snapshot)
         
         # Bước C: Áp giá trị fail_count mới (thằng nào vừa bị hard reset thì xé nháp về 0)
-        final_fail_count = tf.where(needs_hard_reset, 0, updated_fail_count)
+        final_fail_count = tf.where(needs_hard_reset, 0.0, updated_fail_count)
         self.fail_count.assign(final_fail_count)
         
         return next_state, rewards, dones
