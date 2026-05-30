@@ -131,14 +131,15 @@ while update_step < Config.NUM_EPOCHS:
     
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
-    print("⏳ Đang làm bài thi đánh giá năng lực...")
-    # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
-    test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST) 
-    # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
-    print(f"🎯 KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
+    if update_step % Config.TEST_PER_UPDATE_STEP == 0:
+        print("⏳ Đang làm bài thi đánh giá năng lực...")
+        # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
+        test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST) 
+        # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
+        print(f"🎯 KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
     
     # 3. LƯU MODEL MỖI 100 UPDATE
-    if update_step % 100 == 0:
+    if update_step % Config.MODEL_SAVE_PER_UPDATE_STEP == 0:
         save_path = os.path.join(model_dir, f"model_update_{update_step}.weights.h5")
         agent.model.save_weights(save_path)
         print(f"💾 ĐÃ LƯU CHECKPOINT AN TOÀN VÀO: {save_path}\n")

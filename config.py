@@ -13,7 +13,7 @@ class Config:
     NUM_GCN_LAYERS = 3
     
     # --- THÔNG SỐ PPO (A100 Tối ưu) ---
-    NUM_EPOCHS = 1000
+    NUM_EPOCHS = 5000
     BATCH_SIZE = 1024     # Số lượng môi trường song song trên GPU
     MINIBATCH_SIZE =  8192  # Kích thước 1 mẻ đưa vào GPU
     PPO_EPOCHS = 8         # Số lần nhai lại 1 mẻ data
@@ -22,9 +22,10 @@ class Config:
     GAMMA = 0.99
     LAMBDA = 0.95
     CLIP_RATIO = 0.2
-    
+    TEST_PER_UPDATE_STEP = 100
+    MODEL_SAVE_PER_UPDATE_STEP = 100
     # --- ĐIỀU KIỆN MÔI TRƯỜNG ---
     MAX_FAILURES = 10      # Số lần chết liên tục trước khi Reset Map
 
     # ---TEST---
-    NUM_EPISODES_TEST = 3
+    NUM_EPISODES_TEST = 20
