@@ -10,7 +10,7 @@ class Config:
     
     # --- THÔNG SỐ MODEL ---
     EMBED_DIM = 64
-    NUM_GCN_LAYERS = 3
+    NUM_GCN_LAYERS = 6
     
     # --- THÔNG SỐ PPO (A100 Tối ưu) ---
     NUM_EPOCHS = 5000
@@ -22,7 +22,7 @@ class Config:
     GAMMA = 0.99
     LAMBDA = 0.95
     CLIP_RATIO = 0.2
-    TEST_PER_UPDATE_STEP = 100
+    TEST_PER_UPDATE_STEP = 200
     MODEL_SAVE_PER_UPDATE_STEP = 100
     # --- ĐIỀU KIỆN MÔI TRƯỜNG ---
     MAX_FAILURES = 10      # Số lần chết liên tục trước khi Reset Map
