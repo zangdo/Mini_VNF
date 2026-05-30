@@ -27,4 +27,4 @@ class Config:
     MAX_FAILURES = 10      # Số lần chết liên tục trước khi Reset Map
 
     # ---TEST---
-    NUM_EPISODES_TEST = 10
+    NUM_EPISODES_TEST = 3
