@@ -19,16 +19,13 @@ os.makedirs(model_dir, exist_ok=True)
 
 with open(Config.MAP_FILE, 'r', encoding='utf-8') as f:
     topology_data = json.load(f)
-
-# 1. Khởi tạo Môi trường song song trên GPU cho TRAIN
-train_env = BatchedGpuQoSRoutingEnv(Config.NUM_NODES, topology_data, batch_size=Config.BATCH_SIZE)
-
+with tf.device('/GPU:0'):
+    # 1. Khởi tạo Môi trường song song trên GPU cho TRAIN
+    train_env = BatchedGpuQoSRoutingEnv(Config.NUM_NODES, topology_data, batch_size=Config.BATCH_SIZE)
+    model = RoutingPACModel(Config.NUM_NODES, Config.EMBED_DIM, Config.NUM_GCN_LAYERS)
+    agent = BatchedPPOAgent(model, Config.LR, Config.GAMMA, Config.LAMBDA, Config.CLIP_RATIO)
 # 2. Khởi tạo Môi trường đơn truyền thống cho TEST (Phòng thi)
 test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
-
-model = RoutingPACModel(Config.NUM_NODES, Config.EMBED_DIM, Config.NUM_GCN_LAYERS)
-agent = BatchedPPOAgent(model, Config.LR, Config.GAMMA, Config.LAMBDA, Config.CLIP_RATIO)
-
 print("🚀 KHỞI ĐỘNG HỆ THỐNG END-TO-END GPU DRL TRÊN A100...")
 
 # ==========================================
@@ -37,9 +34,10 @@ print("🚀 KHỞI ĐỘNG HỆ THỐNG END-TO-END GPU DRL TRÊN A100...")
 update_step = 0
 
 # Cú lừa Build Model: Dùng hàm generate request mới cho GPU
-dummy_reqs = generate_batched_requests_gpu(Config.BATCH_SIZE, Config.NUM_NODES, Config.BW_MIN, Config.BW_MAX, Config.DELAY_MIN, Config.DELAY_MAX)
-dummy_state = train_env.setup_requests(dummy_reqs['src'], dummy_reqs['dst'], dummy_reqs['bw_req'], dummy_reqs['max_delay'])
-_ = agent.model(dummy_state) 
+with tf.device('/GPU:0'):
+    dummy_reqs = generate_batched_requests_gpu(Config.BATCH_SIZE, Config.NUM_NODES, Config.BW_MIN, Config.BW_MAX, Config.DELAY_MIN, Config.DELAY_MAX)
+    dummy_state = train_env.setup_requests(dummy_reqs['src'], dummy_reqs['dst'], dummy_reqs['bw_req'], dummy_reqs['max_delay'])
+    _ = agent.model(dummy_state) 
 
 saved_models = glob.glob(os.path.join(model_dir, "model_update_*.weights.h5"))
 
