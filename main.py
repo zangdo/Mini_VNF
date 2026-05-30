@@ -133,7 +133,7 @@ while update_step < Config.NUM_EPOCHS:
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     print("⏳ Đang làm bài thi đánh giá năng lực...")
     # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
-    test_acc_rate = evaluate_model(agent, test_env, num_episodes=10) 
+    test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST) 
     # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
     print(f"🎯 KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
     
