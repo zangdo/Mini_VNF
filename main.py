@@ -59,12 +59,13 @@ else:
 # ==========================================
 # HÀM ĐÁNH GIÁ (PHÒNG THI ĐỘC LẬP)
 # ==========================================
-def evaluate_model(agent, env, num_episodes=5):
+def evaluate_model(agent, env, num_episodes=10):
     """ 
-    Kiểm tra độc lập. Tắt nhiễu. Đi tới khi mạng sập (đủ 10 fail).
-    Lặp n phiên rồi lấy trung bình Acceptance Rate.
+    Kiểm tra độc lập. Tắt nhiễu. Đi tới khi mạng sập (đủ MAX_FAILURES).
+    In chi tiết từng phiên và trả về Trung bình Acceptance Rate.
     """
     total_acc_rates = []
+    print(f"\n--- BẮT ĐẦU BÀI THI ({num_episodes} PHIÊN) ---")
     
     for ep in range(num_episodes):
         env.reset()
@@ -89,7 +90,6 @@ def evaluate_model(agent, env, num_episodes=5):
             while not done:
                 # Lấy trực tiếp action có prob cao nhất (Argmax) để test (TẮT NHIỄU)
                 action_probs, _, _ = agent.model(state)
-                # action_probs shape là [1, N]
                 action_val = tf.argmax(action_probs, axis=-1).numpy()[0]
                 
                 next_state, _, done, info = env.step(action_val)
@@ -105,11 +105,15 @@ def evaluate_model(agent, env, num_episodes=5):
             if is_success_req:
                 ep_success_req += 1
                 
-        # Tính tỷ lệ cho 1 phiên
-        rate = ep_success_req / ep_total_req if ep_total_req > 0 else 0.0
+        # Tính tỷ lệ cho phiên hiện tại
+        rate = (ep_success_req / ep_total_req * 100) if ep_total_req > 0 else 0.0
         total_acc_rates.append(rate)
         
-    avg_acc_rate = np.mean(total_acc_rates) * 100
+        # IN RA KẾT QUẢ NGAY LẬP TỨC CHO PHIÊN NÀY
+        print(f"   [Phiên {ep+1:02d}] Đáp ứng: {ep_success_req} / {ep_total_req} requests | Tỷ lệ Accept: {rate:.2f}%")
+        
+    # Lấy trung bình phần trăm của tất cả các phiên
+    avg_acc_rate = np.mean(total_acc_rates)
     return avg_acc_rate
 
 # ==========================================
@@ -126,10 +130,12 @@ while update_step < Config.NUM_EPOCHS:
     print(f"✅ Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
     
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
-    # (Đo xem nó đã thực sự khôn ra chưa)
+    # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     print("⏳ Đang làm bài thi đánh giá năng lực...")
-    test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST)
-    print(f"🎯 KẾT QUẢ BÀI THI: Acceptance Rate trung bình ({Config.NUM_EPISODES_TEST} Test Episodes) = {test_acc_rate:.2f}%\n")
+    # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
+    test_acc_rate = evaluate_model(agent, test_env, num_episodes=10) 
+    # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
+    print(f"🎯 KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
     
     # 3. LƯU MODEL MỖI 100 UPDATE
     if update_step % 100 == 0:
