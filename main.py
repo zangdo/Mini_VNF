@@ -130,7 +130,6 @@ while update_step < Config.NUM_EPOCHS:
     print(f"✅ Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
     
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
-    # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     if update_step % Config.TEST_PER_UPDATE_STEP == 0:
         print("⏳ Đang làm bài thi đánh giá năng lực...")
         # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
