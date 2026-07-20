@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import tensorflow as tf
 
 class FiLMLayer(tf.keras.layers.Layer):
