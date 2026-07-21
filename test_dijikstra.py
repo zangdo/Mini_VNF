@@ -33,24 +33,16 @@ def solve_yens(env, src, dst, bw_req, max_delay, k=7):
         
         best_path = None
         best_bottleneck = -1.0
-
-        # Rút ra tối đa K đường từ Generator
         for path in islice(k_paths_generator, k):
             # Tính tổng Delay của đường này
             path_delay = sum(delay_matrix[path[i], path[i+1]] for i in range(len(path)-1))
-            
-            # Yen's sắp xếp đường đi theo Delay tăng dần.
             if path_delay <= max_delay:
                 # Tìm Cổ chai Băng thông (Bottleneck) của đường này
                 bottleneck = min(bw_matrix[path[i], path[i+1]] for i in range(len(path)-1))
-                
-                # Chiến lược chọn: Đường nào có cổ chai to nhất thì đi (Load Balancing)
                 if bottleneck > best_bottleneck:
                     best_bottleneck = bottleneck
                     best_path = path
             else:
-                # Nếu đường thứ n đã vi phạm Max Delay, thì n+1, n+2 chắc chắn vi phạm!
-                # Break luôn để tiết kiệm CPU
                 break 
 
         return best_path
@@ -79,8 +71,6 @@ def evaluate_yens(env, num_episodes=10, k=7):
             
             _ = env.setup_request(req)
             ep_total_req += 1
-            
-            # Gọi bộ não Yen's
             path = solve_yens(env, src, dst, bw_req, max_delay, k)
             
             if path is None:
@@ -118,6 +108,4 @@ if __name__ == "__main__":
         
     print("🚀 KHỞI ĐỘNG HỆ THỐNG ĐÁNH GIÁ YEN'S K-SHORTEST PATH...")
     test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
-    
-    # K=7 là một con số rất đẹp, đủ để cân bằng tải mà không làm chậm thuật toán
     evaluate_yens(test_env, num_episodes=10, k=7)

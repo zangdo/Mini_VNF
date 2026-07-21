@@ -22,10 +22,10 @@ class Config:
     GAMMA = 0.99
     LAMBDA = 0.95
     CLIP_RATIO = 0.2
-    TEST_PER_UPDATE_STEP = 50
-    MODEL_SAVE_PER_UPDATE_STEP = 50
+    TEST_PER_UPDATE_STEP = 100
+    MODEL_SAVE_PER_UPDATE_STEP = 100
     # --- ĐIỀU KIỆN MÔI TRƯỜNG ---
     MAX_FAILURES = 10      # Số lần chết liên tục trước khi Reset Map
 
     # ---TEST---
-    NUM_EPISODES_TEST = 10
+    NUM_EPISODES_TEST = 5
