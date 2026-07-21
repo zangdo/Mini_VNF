@@ -18,10 +18,7 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
             base_mask[u, v] = base_mask[v, u] = 1.0
             delay_mat[u, v] = delay_mat[v, u] = delay
             cap_mat[u, v] = cap_mat[v, u] = bw
-
-        # ==========================================
         # ĐƯA STATIC TENSORS LÊN GPU VÀ NHÂN BẢN THÀNH BATCH
-        # ==========================================
         self.base_mask = tf.constant(np.tile(base_mask, (self.B, 1, 1)))       # [B, N, N]
         self.static_delay = tf.constant(np.tile(delay_mat, (self.B, 1, 1)))    # [B, N, N]
         self.max_capacity = tf.constant(np.tile(cap_mat, (self.B, 1, 1)))      # [B, N, N]
@@ -82,10 +79,7 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         
         A_bw_norm = self._symmetric_normalize(pruned_bw_mask)
         A_delay_norm = self._symmetric_normalize(pruned_delay_mask)
-        
-        # ==========================================
         # TẠO VALID MASK (Kỹ thuật Đại số tuyến tính)
-        # ==========================================
         curr_node_one_hot = tf.one_hot(self.curr_node, self.num_nodes) # [B, N]
         
         # Trích xuất hàng của curr_node từ ma trận base, bw và delay
@@ -138,10 +132,7 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         
         # Check xem action có nằm trong valid_mask không
         is_invalid_action = tf.reduce_sum(old_valid_mask * action_one_hot, axis=1) == 0.0 # [B]
-        
-        # ==========================================
         # 2. TẠM ỨNG TÀI NGUYÊN (Dùng Toán học One-hot, không vòng lặp)
-        # ==========================================
         curr_one_hot = tf.one_hot(self.curr_node, self.num_nodes) # [B, N]
         
         # Tạo mask 2D cho cạnh [curr_node, action] và ngược lại
@@ -160,38 +151,24 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         # Đánh dấu Visited và Cập nhật curr_node
         self.visited = self.visited | tf.cast(action_one_hot, tf.bool)
         self.curr_node = actions
-        
-        # ==========================================
         # 3. KIỂM TRA PHẦN THƯỞNG VÀ ĐIỀU KIỆN DỪNG
-        # ==========================================
         next_state = self._get_state_dict()
         next_valid_mask = next_state['valid_mask']
         
         is_success = (self.curr_node == self.dst)
-        # SỬA LẠI THẾ NÀY: Dùng toán tử bitwise | (OR) thay cho chữ or
         is_deadend = (tf.reduce_sum(next_valid_mask, axis=1) == 0.0) | is_invalid_action
-        
-        # (Nếu ở đâu đó Tú có dùng and thì cũng đổi thành & nhé)
         
         dones = is_success | is_deadend
         jain_score = self._calculate_jain_index()
         
         rewards = tf.where(is_success, 3.0 + jain_score,
                   tf.where(is_deadend, -3.0 + jain_score, 0.0))
-                  
-        # ==========================================
         # 4. CẬP NHẬT FAIL_COUNT VÀ CHECK HARD RESET
-        # ==========================================
         # Logic: Nếu DeadEnd thì +1, nếu Success thì reset về 0, nếu đang đi (In_Progress) thì giữ nguyên
         updated_fail_count = tf.where(is_deadend, self.fail_count + 1.0,
                              tf.where(is_success, 0.0, self.fail_count))
-        
-        # SỬA Ở ĐÂY: Dùng 10.0 thay vì 10
         needs_hard_reset = updated_fail_count >= self.num_failures
-        
-        # ==========================================
         # 5. XỬ LÝ ROLLBACK / HARD RESET TRÊN MATRIX
-        # ==========================================
         # Bước A: Xử lý Rollback tạm thời cho ca DeadEnd thông thường
         dones_expanded = tf.reshape(is_deadend, [self.B, 1, 1])
         rolled_back_bw = tf.where(dones_expanded, self.snapshot_bw_matrix, self.current_bw_matrix)
@@ -239,7 +216,6 @@ class QoSRoutingEnv:
         self.curr_node = self.src
         self.remain_time = self.max_delay
         self.visited = [self.src]
-        # --- THÊM DÒNG NÀY: Lưu vết các cạnh đã tạm ứng băng thông ---
         self.touched_edges = []
         return self._get_state_dict()
 

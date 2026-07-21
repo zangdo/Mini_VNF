@@ -79,7 +79,6 @@ def generate_batched_requests_gpu(batch_size, num_nodes, bw_min, bw_max, delayma
     return batched_requests
 
 if __name__ == "__main__":
-    # Giao diện dòng lệnh (CLI) để test nhanh trên Terminal A100
     parser = argparse.ArgumentParser(description="Trình tạo luồng Request mạng NFV")
     parser.add_argument("--num_req", type=int, default=10, help="Số lượng Request cần sinh")
     parser.add_argument("--nodes", type=int, default=100, help="Tổng số Node của Map hiện tại")

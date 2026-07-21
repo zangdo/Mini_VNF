@@ -12,7 +12,7 @@ def generate_telecom_map(num_nodes, num_edges, bw_min, bw_max, delay_min, delay_
     if num_edges < num_nodes - 1:
         raise ValueError(f"Lỗi: Số cạnh ({num_edges}) phải >= Số node - 1 ({num_nodes - 1}) để mạng liên thông!")
 
-    print(f"⚙️ Bắt đầu sinh bản đồ: {num_nodes} Nodes, {num_edges} Edges...")
+    print(f"Bắt đầu sinh bản đồ: {num_nodes} Nodes, {num_edges} Edges...")
 
     # BƯỚC 1: Tạo bộ khung xương (Spanning Tree) để đảm bảo không có Node nào bị cô lập
     G = nx.random_labeled_tree(n=num_nodes)
@@ -69,7 +69,7 @@ def generate_telecom_map(num_nodes, num_edges, bw_min, bw_max, delay_min, delay_
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(topology_data, f, indent=4)
         
-    print(f"✅ Đã lưu thành công tại: {output_file}")
+    print(f"Đã lưu thành công tại: {output_file}")
 
 
 if __name__ == "__main__":

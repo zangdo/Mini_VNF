@@ -50,7 +50,7 @@ def solve_yens(env, src, dst, bw_req, max_delay, k=7):
     except (nx.NetworkXNoPath, nx.NodeNotFound):
         return None # Đứt đường, không tìm nổi kể cả 1 con đường
 
-def evaluate_yens(env, num_episodes=10, k=7):
+def evaluate_yens(env, num_episodes=10, k=20):
     """ Phòng thi dành riêng cho Yen's K-Shortest Path """
     print(f"\n--- BẮT ĐẦU BÀI THI YEN'S (K={k}) ({num_episodes} PHIÊN) ---")
     total_acc_rates = []
@@ -108,4 +108,4 @@ if __name__ == "__main__":
         
     print("🚀 KHỞI ĐỘNG HỆ THỐNG ĐÁNH GIÁ YEN'S K-SHORTEST PATH...")
     test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
-    evaluate_yens(test_env, num_episodes=10, k=7)
+    evaluate_yens(test_env, num_episodes=10, k=20)

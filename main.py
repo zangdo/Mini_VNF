@@ -11,9 +11,7 @@ from model import RoutingPACModel
 from agent import BatchedPPOAgent
 from generate_request import generate_batched_requests_gpu, generate_single_request
 
-# ==========================================
 # CÀI ĐẶT THƯ MỤC CHECKPOINT
-# ==========================================
 map_name = os.path.splitext(os.path.basename(Config.MAP_FILE))[0]
 model_dir = os.path.join("model_history", map_name)
 os.makedirs(model_dir, exist_ok=True)
@@ -27,11 +25,8 @@ with tf.device('/GPU:0'):
     agent = BatchedPPOAgent(model, Config.LR, Config.GAMMA, Config.LAMBDA, Config.CLIP_RATIO)
 # 2. Khởi tạo Môi trường đơn truyền thống cho TEST (Phòng thi)
 test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
-print("🚀 KHỞI ĐỘNG HỆ THỐNG END-TO-END GPU DRL TRÊN A100...")
-
-# ==========================================
+print(" KHỞI ĐỘNG HỆ THỐNG END-TO-END GPU DRL TRÊN A100...")
 # AUTO-RESUME: TÌM VÀ LOAD MODEL MỚI NHẤT
-# ==========================================
 update_step = 0
 
 # Cú lừa Build Model: Dùng hàm generate request mới cho GPU
@@ -52,14 +47,11 @@ if saved_models:
     update_step = extract_step(latest_model_path)
     
     agent.model.load_weights(latest_model_path)
-    print(f"🔄 ĐÃ TÌM THẤY NÃO CŨ! Nạp thành công trọng số từ: {latest_model_path}")
-    print(f"📈 Sẽ tiếp tục Train từ mẻ thứ {update_step + 1}...")
+    print(f"ĐÃ TÌM THẤY NÃO CŨ! Nạp thành công trọng số từ: {latest_model_path}")
+    print(f"Sẽ tiếp tục Train từ mẻ thứ {update_step + 1}...")
 else:
-    print("✨ Bắt đầu Train một bộ não hoàn toàn mới (From Scratch)...")
-
-# ==========================================
+    print("Bắt đầu Train một bộ não hoàn toàn mới...")
 # HÀM ĐÁNH GIÁ (PHÒNG THI ĐỘC LẬP)
-# ==========================================
 def evaluate_model(agent, env, num_episodes=10):
     """ 
     Kiểm tra độc lập. Tắt nhiễu. Đi tới khi mạng sập (đủ MAX_FAILURES).
@@ -116,10 +108,7 @@ def evaluate_model(agent, env, num_episodes=10):
     # Lấy trung bình phần trăm của tất cả các phiên
     avg_acc_rate = np.mean(total_acc_rates)
     return avg_acc_rate
-
-# ==========================================
 # VÒNG LẶP HUẤN LUYỆN CHÍNH TRÊN GPU
-# ==========================================
 while update_step < Config.NUM_EPOCHS:
     update_step += 1
     print(f"🔥 [Update {update_step}] Đang thả 1024 môi trường cày cuốc trên GPU...")
@@ -128,18 +117,18 @@ while update_step < Config.NUM_EPOCHS:
     # 1 Epoch lớn này tương đương thu thập 131,072 Transitions!
     loss_metrics = agent.learn(train_env, num_steps=Config.NUM_STEPS, ppo_epochs=Config.PPO_EPOCHS, minibatch_size=Config.MINIBATCH_SIZE)
     
-    print(f"✅ Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
+    print(f" Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
     
     # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     if update_step % Config.TEST_PER_UPDATE_STEP == 0:
-        print("⏳ Đang làm bài thi đánh giá năng lực...")
+        print(" Đang làm bài thi đánh giá năng lực...")
         # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
         test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST) 
         # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
-        print(f"🎯 KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
+        print(f"KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
     
     # 3. LƯU MODEL MỖI 100 UPDATE
     if update_step % Config.MODEL_SAVE_PER_UPDATE_STEP == 0:
         save_path = os.path.join(model_dir, f"model_update_{update_step}.weights.h5")
         agent.model.save_weights(save_path)
-        print(f"💾 ĐÃ LƯU CHECKPOINT AN TOÀN VÀO: {save_path}\n")
+        print(f" ĐÃ LƯU CHECKPOINT AN TOÀN VÀO: {save_path}\n")

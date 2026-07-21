@@ -7,10 +7,7 @@ from config import Config
 from env import QoSRoutingEnv
 from model import RoutingPACModel
 from generate_request import generate_single_request
-
-# ==========================================
-# 1. ĐỊNH NGHĨA AGENT DFS (nếu chưa có trong agent.py)
-# ==========================================
+# 1. ĐỊNH NGHĨA AGENT DFS
 class DFSRoutingAgent:
     """
     Agent sử dụng policy (PPO) để ưu tiên các node, kết hợp DFS để tìm đường
@@ -48,26 +45,17 @@ class DFSRoutingAgent:
         candidates.sort(key=lambda x: x[1], reverse=True)
 
         for next_node, _ in candidates:
-            # Kiểm tra thời gian còn lại
             edge_delay = env.static_delay_matrix[node, next_node]
             if remain_time < edge_delay:
-                continue  # không đủ thời gian, bỏ qua nhánh này
-
-            # --- Tạm chiếm dụng băng thông ---
+                continue 
             env.current_bw_matrix[node, next_node] -= env.bw_req
             env.current_bw_matrix[next_node, node] -= env.bw_req
-
-            # Đệ quy xuống nhánh
             new_visited = visited | {next_node}
             new_path = path + [next_node]
             found = self._dfs(env, next_node, dst, new_path, new_visited,
                               remain_time - edge_delay)
-
-            # Nếu tìm thấy, dừng ngay
             if found:
                 return True
-
-            # --- Rollback băng thông nếu nhánh thất bại ---
             self._rollback_edge(env, node, next_node)
 
         return False
@@ -76,7 +64,6 @@ class DFSRoutingAgent:
         """Hoàn trả băng thông cho một cạnh cụ thể (dùng khi backtrack)"""
         env.current_bw_matrix[u, v] += env.bw_req
         env.current_bw_matrix[v, u] += env.bw_req
-        # Xóa cạnh khỏi danh sách touched_edges nếu có (trong env gốc)
         if hasattr(env, 'touched_edges'):
             if (u, v) in env.touched_edges:
                 env.touched_edges.remove((u, v))
@@ -106,9 +93,7 @@ class DFSRoutingAgent:
             return None, 'Failed'
 
 
-# ==========================================
 # 2. HÀM ĐÁNH GIÁ
-# ==========================================
 def evaluate_dfs_agent(agent, env, num_episodes=20):
     """Đánh giá agent DFS với num_episodes request"""
     success_count = 0
@@ -132,9 +117,7 @@ def evaluate_dfs_agent(agent, env, num_episodes=20):
     return acc_rate
 
 
-# ==========================================
 # 3. MAIN
-# ==========================================
 if __name__ == "__main__":
     # --- Cấu hình đường dẫn model ---
     # Lấy tên map từ Config
@@ -150,9 +133,9 @@ if __name__ == "__main__":
             match = re.search(r"update_(\d+)", filename)
             return int(match.group(1)) if match else -1
         latest_model_path = max(saved_models, key=extract_step)
-        print(f"📂 Sử dụng model mới nhất: {latest_model_path}")
+        print(f" Sử dụng model mới nhất: {latest_model_path}")
     else:
-        print("⚠️ Không tìm thấy model đã train. Thoát.")
+        print("Không tìm thấy model đã train. Thoát.")
         exit(1)
 
     # --- Load topology ---
@@ -172,7 +155,7 @@ if __name__ == "__main__":
     _ = model(dummy_state)
 
     model.load_weights(latest_model_path)
-    print("✅ Đã load trọng số model.")
+    print("Đã load trọng số model.")
 
     # --- Tạo agent DFS ---
     dfs_agent = DFSRoutingAgent(model, max_depth=30)
