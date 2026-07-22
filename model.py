@@ -125,7 +125,7 @@ class RoutingPACModel(tf.keras.Model):
     def sample_action(self, masked_logits):
         """
         Dùng thẳng masked_logits đã được lọc ở hàm call.
-        Vừa nhanh vừa không bao giờ lo lỗi chia cho 0!
+        Vừa nhanh vừa không bao giờ lo lỗi chia cho 0
         """
         action = tf.random.categorical(masked_logits, num_samples=1)
         return tf.squeeze(action, axis=-1)

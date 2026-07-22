@@ -108,12 +108,12 @@ def evaluate_dfs_agent(agent, env, num_episodes=20):
         total_requests += 1
         if status == 'Success':
             success_count += 1
-            print(f"[{ep+1:03d}] ✅ Thành công: {req['src']}->{req['dst']} | Path: {path}")
+            print(f"[{ep+1:03d}] Thành công: {req['src']}->{req['dst']} | Path: {path}")
         else:
-            print(f"[{ep+1:03d}] ❌ Thất bại: {req['src']}->{req['dst']} | Path: {path if path else 'None'}")
+            print(f"[{ep+1:03d}] Thất bại: {req['src']}->{req['dst']} | Path: {path if path else 'None'}")
 
     acc_rate = (success_count / total_requests) * 100
-    print(f"\n🎯 KẾT QUẢ: Acceptance Rate = {acc_rate:.2f}% ({success_count}/{total_requests})")
+    print(f"\n KẾT QUẢ: Acceptance Rate = {acc_rate:.2f}% ({success_count}/{total_requests})")
     return acc_rate
 
 

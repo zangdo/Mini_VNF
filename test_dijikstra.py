@@ -99,13 +99,13 @@ def evaluate_yens(env, num_episodes=10, k=20):
         print(f"   [Phiên {ep+1:02d}] Đáp ứng: {ep_success_req} / {ep_total_req} requests | Tỷ lệ Accept: {rate:.2f}%")
         
     avg_acc_rate = np.mean(total_acc_rates)
-    print(f"\n🎯 KẾT QUẢ CHỐT SỔ YEN'S (K={k}): Acceptance Rate trung bình = {avg_acc_rate:.2f}%\n")
+    print(f"\nKẾT QUẢ CHỐT SỔ YEN'S (K={k}): Acceptance Rate trung bình = {avg_acc_rate:.2f}%\n")
     return avg_acc_rate
 
 if __name__ == "__main__":
     with open(Config.MAP_FILE, 'r', encoding='utf-8') as f:
         topology_data = json.load(f)
         
-    print("🚀 KHỞI ĐỘNG HỆ THỐNG ĐÁNH GIÁ YEN'S K-SHORTEST PATH...")
+    print("KHỞI ĐỘNG HỆ THỐNG ĐÁNH GIÁ YEN'S K-SHORTEST PATH...")
     test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
     evaluate_yens(test_env, num_episodes=10, k=20)

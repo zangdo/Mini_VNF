@@ -8,16 +8,12 @@ import tensorflow as tf
 def generate_single_request(num_nodes, bw_min, bw_max, delaymax_min, delaymax_max):
     """
     Sinh ra một Request định tuyến ngẫu nhiên.
-    Đảm bảo Node Nguồn (src) và Node Đích (dst) không bao giờ trùng nhau.
+    Đảm bảo Node Nguồn và Node Đích không bao giờ trùng nhau.
     """
     src = random.randint(0, num_nodes - 1)
     dst = random.randint(0, num_nodes - 1)
-    
-    # Rút lại ngẫu nhiên nếu trùng đích
     while src == dst:
         dst = random.randint(0, num_nodes - 1)
-
-    # Làm tròn thông số để dữ liệu thực tế hơn (giống log của trạm viễn thông)
     bw_req = round(random.uniform(bw_min, bw_max), 1)
     max_delay = round(random.uniform(delaymax_min, delaymax_max), 2)
 
@@ -33,20 +29,11 @@ def generate_batched_requests_gpu(batch_size, num_nodes, bw_min, bw_max, delayma
     Sinh hàng ngàn requests song song trực tiếp trên GPU.
     Trả về Dictionary chứa các Tensors kích thước [Batch].
     """
-    # 1. Sinh Source ngẫu nhiên từ 0 đến num_nodes - 1
     src = tf.random.uniform(shape=[batch_size], minval=0, maxval=num_nodes, dtype=tf.int32)
-    
-    # 2. Sinh Destination ngẫu nhiên (TUYỆT KỸ TRÁNH TRÙNG LẶP SANG SOURCE)
-    # Cộng thêm một độ dời (offset) ngẫu nhiên từ 1 đến num_nodes - 1, sau đó chia lấy dư.
-    # Đảm bảo 100% dst luôn khác src mà không cần vòng lặp while!
     offset = tf.random.uniform(shape=[batch_size], minval=1, maxval=num_nodes, dtype=tf.int32)
     dst = (src + offset) % num_nodes
-    
-    # 3. Sinh Băng thông và Delay
     bw_req = tf.random.uniform(shape=[batch_size], minval=bw_min, maxval=bw_max, dtype=tf.float32)
     max_delay = tf.random.uniform(shape=[batch_size], minval=delaymax_min, maxval=delaymax_max, dtype=tf.float32)
-    
-    # Gom thành Tensors, sẵn sàng "bón" thẳng vào hàm setup_requests của BatchedGpuQoSRoutingEnv
     batched_requests = {
         'src': src,
         'dst': dst,
@@ -74,7 +61,7 @@ def generate_batched_requests_gpu(batch_size, num_nodes, bw_min, bw_max, delayma
         
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(reqs_list, f, indent=4)
-        print(f"✅ Đã lưu kịch bản {batch_size} requests tại: {output_file}")
+        print(f"Đã lưu kịch bản {batch_size} requests tại: {output_file}")
 
     return batched_requests
 
