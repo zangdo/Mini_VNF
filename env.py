@@ -8,8 +8,6 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         self.num_nodes = num_nodes
         self.B = batch_size
         self.num_failures = float(num_failures)
-
-        # Khởi tạo ma trận vật lý dạng Numpy
         base_mask = np.zeros((num_nodes, num_nodes), dtype=np.float32)
         delay_mat = np.zeros((num_nodes, num_nodes), dtype=np.float32)
         cap_mat = np.zeros((num_nodes, num_nodes), dtype=np.float32)
@@ -18,15 +16,11 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
             base_mask[u, v] = base_mask[v, u] = 1.0
             delay_mat[u, v] = delay_mat[v, u] = delay
             cap_mat[u, v] = cap_mat[v, u] = bw
-        # ĐƯA STATIC TENSORS LÊN GPU VÀ NHÂN BẢN THÀNH BATCH
         self.base_mask = tf.constant(np.tile(base_mask, (self.B, 1, 1)))       # [B, N, N]
         self.static_delay = tf.constant(np.tile(delay_mat, (self.B, 1, 1)))    # [B, N, N]
         self.max_capacity = tf.constant(np.tile(cap_mat, (self.B, 1, 1)))      # [B, N, N]
-        
-        # Biến trạng thái động (Dynamic States) lưu trên VRAM
         self.current_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
-        self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False) # Dùng để Rollback siêu tốc
-        # SỬA Ở ĐÂY: Đổi int32 thành float32
+        self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
         zero_fails = tf.zeros([self.B], dtype=tf.float32)
         self.fail_count = tf.Variable(zero_fails, trainable=False)
 
@@ -79,19 +73,13 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         
         A_bw_norm = self._symmetric_normalize(pruned_bw_mask)
         A_delay_norm = self._symmetric_normalize(pruned_delay_mask)
-        # TẠO VALID MASK (Kỹ thuật Đại số tuyến tính)
         curr_node_one_hot = tf.one_hot(self.curr_node, self.num_nodes) # [B, N]
-        
-        # Trích xuất hàng của curr_node từ ma trận base, bw và delay
-        # Dùng phép tính batch matrix multiplication (bmm) bằng einsum cho nhanh
         curr_base = tf.einsum('bi,bij->bj', curr_node_one_hot, self.base_mask)
         curr_bw = tf.einsum('bi,bij->bj', curr_node_one_hot, self.current_bw_matrix)
         curr_delay = tf.einsum('bi,bij->bj', curr_node_one_hot, self.static_delay)
         
         bw_req_2d = tf.reshape(self.bw_req, [self.B, 1])
         remain_time_2d = tf.reshape(self.remain_time, [self.B, 1])
-        
-        # Logic gộp: Có nối cáp AND Đủ băng thông AND Đủ thời gian AND Chưa tới (not visited)
         valid_mask = (curr_base == 1.0) & (curr_bw >= bw_req_2d) & (curr_delay <= remain_time_2d) & (~self.visited)
         valid_mask = tf.cast(valid_mask, tf.float32)
         
@@ -125,7 +113,6 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
     def step(self, actions):
         """ actions shape: [B] """
         actions = tf.cast(actions, tf.int32)
-        # 1. Trích xuất valid_mask từ state cũ (để xử phạt nếu bốc nhầm)
         old_state = self._get_state_dict()
         old_valid_mask = old_state['valid_mask']
         action_one_hot = tf.one_hot(actions, self.num_nodes) # [B, N]
@@ -224,11 +211,8 @@ class QoSRoutingEnv:
     def _symmetric_normalize(self, adj):
 
         adj_self = adj + np.eye(self.num_nodes, dtype=np.float32)
-
         degree = np.sum(adj_self, axis=-1)
-
         d_inv_sqrt = np.power(degree, -0.5, where=degree > 0, out=np.zeros_like(degree))
-
         d_inv_sqrt_mat = np.diag(d_inv_sqrt)
 
         return d_inv_sqrt_mat @ adj_self @ d_inv_sqrt_mat
@@ -238,13 +222,11 @@ class QoSRoutingEnv:
     def _get_state_dict(self):
 
         pruned_bw_mask = (self.current_bw_matrix >= self.bw_req) * self.base_topology_mask
-
         pruned_delay_mask = (self.static_delay_matrix <= self.remain_time) * self.base_topology_mask
 
        
 
         A_bw_norm = self._symmetric_normalize(pruned_bw_mask)
-
         A_delay_norm = self._symmetric_normalize(pruned_delay_mask)
 
        
@@ -254,13 +236,9 @@ class QoSRoutingEnv:
         for neighbor in range(self.num_nodes):
 
             if (self.base_topology_mask[self.curr_node, neighbor] == 1.0 and
-
                 self.current_bw_matrix[self.curr_node, neighbor] >= self.bw_req and
-
                 self.static_delay_matrix[self.curr_node, neighbor] <= self.remain_time and
-
                 neighbor not in self.visited):
-
                 valid_mask[neighbor] = 1.0
 
                
@@ -305,7 +283,6 @@ class QoSRoutingEnv:
         if valid_mask[action] == 0.0:
             self._rollback_current_request() # Trả lại tài nguyên (nếu có)
             return self._get_state_dict(), -3.0, True, {'status': 'DeadEnd'}
-        # --- TIẾN HÀNH TẠM ỨNG TÀI NGUYÊN ---
         self.current_bw_matrix[self.curr_node, action] -= self.bw_req
         self.current_bw_matrix[action, self.curr_node] -= self.bw_req
         # Ghi vết lại để chuẩn bị cho tình huống xấu nhất
@@ -325,7 +302,7 @@ class QoSRoutingEnv:
         # Trường hợp 3: Đâm vào ngõ cụt (Không còn đường nào hợp lệ để đi tiếp)
         elif np.sum(next_valid_mask) == 0.0:
             # THỰC HIỆN ROLLBACK TOÀN BỘ ĐƯỜNG ĐÃ ĐI CỦA REQUEST NÀY!
-            reward = -3.0 + self._calculate_jain_index() # Phạt nặng nhưng vẫn có thể thưởng nếu mạng đang rất cân bằng
+            reward = -3.0 + self._calculate_jain_index()
             self._rollback_current_request()
             return next_state_dict, reward, True, {'status': 'DeadEnd'}
         # Trường hợp 4: Vẫn đang luồn lách ổn định, chưa tới đích

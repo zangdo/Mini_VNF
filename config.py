@@ -12,7 +12,7 @@ class Config:
     EMBED_DIM = 64
     NUM_GCN_LAYERS = 3
     
-    # --- THÔNG SỐ PPO (A100 Tối ưu) ---
+    # --- THÔNG SỐ PPO ---
     NUM_EPOCHS = 5000
     BATCH_SIZE = 1024     # Số lượng môi trường song song trên GPU
     MINIBATCH_SIZE =  8192  # Kích thước 1 mẻ đưa vào GPU

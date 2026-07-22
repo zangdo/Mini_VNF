@@ -6,12 +6,10 @@ import re
 import numpy as np
 import tensorflow as tf
 from config import Config
-from env import BatchedGpuQoSRoutingEnv, QoSRoutingEnv # Import cả 2 env
+from env import BatchedGpuQoSRoutingEnv, QoSRoutingEnv
 from model import RoutingPACModel
 from agent import BatchedPPOAgent
 from generate_request import generate_batched_requests_gpu, generate_single_request
-
-# CÀI ĐẶT THƯ MỤC CHECKPOINT
 map_name = os.path.splitext(os.path.basename(Config.MAP_FILE))[0]
 model_dir = os.path.join("model_history", map_name)
 os.makedirs(model_dir, exist_ok=True)
@@ -19,17 +17,12 @@ os.makedirs(model_dir, exist_ok=True)
 with open(Config.MAP_FILE, 'r', encoding='utf-8') as f:
     topology_data = json.load(f)
 with tf.device('/GPU:0'):
-    # 1. Khởi tạo Môi trường song song trên GPU cho TRAIN
     train_env = BatchedGpuQoSRoutingEnv(Config.NUM_NODES, topology_data, batch_size=Config.BATCH_SIZE)
     model = RoutingPACModel(Config.NUM_NODES, Config.EMBED_DIM, Config.NUM_GCN_LAYERS)
     agent = BatchedPPOAgent(model, Config.LR, Config.GAMMA, Config.LAMBDA, Config.CLIP_RATIO)
-# 2. Khởi tạo Môi trường đơn truyền thống cho TEST (Phòng thi)
 test_env = QoSRoutingEnv(Config.NUM_NODES, topology_data)
 print(" KHỞI ĐỘNG HỆ THỐNG END-TO-END GPU DRL TRÊN A100...")
-# AUTO-RESUME: TÌM VÀ LOAD MODEL MỚI NHẤT
 update_step = 0
-
-# Cú lừa Build Model: Dùng hàm generate request mới cho GPU
 with tf.device('/GPU:0'):
     dummy_reqs = generate_batched_requests_gpu(Config.BATCH_SIZE, Config.NUM_NODES, Config.BW_MIN, Config.BW_MAX, Config.DELAY_MIN, Config.DELAY_MAX)
     dummy_state = train_env.setup_requests(dummy_reqs['src'], dummy_reqs['dst'], dummy_reqs['bw_req'], dummy_reqs['max_delay'])
@@ -69,8 +62,6 @@ def evaluate_model(agent, env, num_episodes=10):
         while fail_count < Config.MAX_FAILURES:
             req = generate_single_request(Config.NUM_NODES, Config.BW_MIN, Config.BW_MAX, Config.DELAY_MIN, Config.DELAY_MAX)
             state = env.setup_request(req)
-            
-            # Khởi đầu đã không có đường
             if np.sum(state['valid_mask'].numpy()[0]) == 0.0:
                 fail_count += 1
                 ep_total_req += 1
@@ -81,7 +72,6 @@ def evaluate_model(agent, env, num_episodes=10):
             is_success_req = False
             
             while not done:
-                # Lấy trực tiếp action có prob cao nhất (Argmax) để test (TẮT NHIỄU)
                 action_probs, _, _ = agent.model(state)
                 action_val = tf.argmax(action_probs, axis=-1).numpy()[0]
                 
@@ -108,27 +98,20 @@ def evaluate_model(agent, env, num_episodes=10):
     # Lấy trung bình phần trăm của tất cả các phiên
     avg_acc_rate = np.mean(total_acc_rates)
     return avg_acc_rate
-# VÒNG LẶP HUẤN LUYỆN CHÍNH TRÊN GPU
 while update_step < Config.NUM_EPOCHS:
     update_step += 1
-    print(f"🔥 [Update {update_step}] Đang thả 1024 môi trường cày cuốc trên GPU...")
-    
-    # 1. TRAIN BATCHED PPO TRÊN GPU (Gồm cả Rollout và Train cực nhanh)
+    print(f"[Update {update_step}] Đang chạy đa môi trường trên GPU...")
     # 1 Epoch lớn này tương đương thu thập 131,072 Transitions!
     loss_metrics = agent.learn(train_env, num_steps=Config.NUM_STEPS, ppo_epochs=Config.PPO_EPOCHS, minibatch_size=Config.MINIBATCH_SIZE)
     
     print(f" Train xong! A-Loss: {loss_metrics['actor_loss']:.3f} | C-Loss: {loss_metrics['critic_loss']:.3f} | Entropy: {loss_metrics['entropy']:.3f}")
     
-    # 2. KIỂM TRA ĐỊNH KỲ BẰNG MÔI TRƯỜNG ĐƠN
     if update_step % Config.TEST_PER_UPDATE_STEP == 0:
         print(" Đang làm bài thi đánh giá năng lực...")
-        # Ép thi 10 phiên theo ý Tú (hoặc dùng Config.NUM_EPISODES_TEST)
         test_acc_rate = evaluate_model(agent, test_env, num_episodes=Config.NUM_EPISODES_TEST) 
-        # Chỉ in đúng cái phần trăm trung bình ở cuối cùng
-        print(f"KẾT QUẢ CHỐT SỔ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
+        print(f"KẾT QUẢ: Acceptance Rate trung bình = {test_acc_rate:.2f}%\n")
     
-    # 3. LƯU MODEL MỖI 100 UPDATE
     if update_step % Config.MODEL_SAVE_PER_UPDATE_STEP == 0:
         save_path = os.path.join(model_dir, f"model_update_{update_step}.weights.h5")
         agent.model.save_weights(save_path)
-        print(f" ĐÃ LƯU CHECKPOINT AN TOÀN VÀO: {save_path}\n")
+        print(f" ĐÃ LƯU CHECKPOINT VÀO: {save_path}\n")
