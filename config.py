@@ -1,8 +1,8 @@
 # config.py
 class Config:
     # --- THÔNG SỐ BẢN ĐỒ & REQUEST ---
-    MAP_FILE = "map/map_30_dense.json"
-    NUM_NODES = 30
+    MAP_FILE = "map/map_100_dense.json"
+    NUM_NODES = 100
     BW_MIN = 10.0
     BW_MAX = 50.0
     DELAY_MIN = 50.0
