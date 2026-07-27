@@ -11,7 +11,7 @@ class BatchedPPOAgent:
         self.clip_ratio = clip_ratio
         
         self.c1 = 0.5  # Hệ số Loss Critic
-        self.c2 = 0.01 # Hệ số Loss Entropy
+        self.c2 = 0.08 # Hệ số Loss Entropy
 
     @tf.function
     def compute_gae_gpu(self, rewards, values, dones, next_v):
