@@ -1,5 +1,5 @@
 
-from networkx import shortest_path
+from scipy.sparse.csgraph import shortest_path
 import numpy as np
 import tensorflow as tf
 
