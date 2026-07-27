@@ -171,8 +171,8 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         dones = is_success | is_deadend
         jain_score = self._calculate_jain_index()
         
-        rewards = tf.where(is_success, 3.0 + 2*jain_score,
-                  tf.where(is_deadend, -3.0 + 2*jain_score, 0.0))
+        rewards = tf.where(is_success, 3.0 + 2.0*jain_score,
+                  tf.where(is_deadend, -3.0 + 2.0*jain_score, 0.0))
         closer = new_dist < old_dist          # tiến gần đích
         farther = new_dist > old_dist         # đi xa đích
         shaping = tf.where(closer, 0.02, tf.where(farther, -0.02, 0.0))
