@@ -297,12 +297,12 @@ class QoSRoutingEnv:
         if self.curr_node == self.dst:
             # Giữ nguyên tài nguyên bị chiếm đóng trên mạng, xóa bộ nhớ tạm ứng
             self.touched_edges.clear()
-            reward = 3.0 + self._calculate_jain_index() # Thưởng thêm nếu mạng đang khá cân bằng
+            reward = 3.0 # Thưởng thêm nếu mạng đang khá cân bằng
             return next_state_dict, reward, True, {'status': 'Success'}
         # Trường hợp 3: Đâm vào ngõ cụt (Không còn đường nào hợp lệ để đi tiếp)
         elif np.sum(next_valid_mask) == 0.0:
             # THỰC HIỆN ROLLBACK TOÀN BỘ ĐƯỜNG ĐÃ ĐI CỦA REQUEST NÀY!
-            reward = -3.0 + self._calculate_jain_index()
+            reward = -3.0
             self._rollback_current_request()
             return next_state_dict, reward, True, {'status': 'DeadEnd'}
         # Trường hợp 4: Vẫn đang luồn lách ổn định, chưa tới đích
