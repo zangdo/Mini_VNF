@@ -1,4 +1,5 @@
 
+from networkx import shortest_path
 import numpy as np
 import tensorflow as tf
 
@@ -23,7 +24,25 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         self.snapshot_bw_matrix = tf.Variable(self.max_capacity, trainable=False)
         zero_fails = tf.zeros([self.B], dtype=tf.float32)
         self.fail_count = tf.Variable(zero_fails, trainable=False)
+        # ---------- THÊM PHẦN NÀY ----------
+        # Tạo ma trận kề nhị phân (chỉ cấu trúc)
+        binary_adj = np.zeros((num_nodes, num_nodes), dtype=np.float32)
+        for (u, v), _, _ in zip(topology_data['links'], topology_data['bw'], topology_data['delay']):
+            binary_adj[u, v] = binary_adj[v, u] = 1.0
 
+        # Tính số hop ngắn nhất giữa mọi cặp node
+        hop_matrix = shortest_path(binary_adj, directed=False, unweighted=True)
+        # Thay giá trị vô cùng bằng 0 (node không tới được) – trong thực tế đồ thị liên thông nên không có inf
+        hop_matrix = np.nan_to_num(hop_matrix, nan=0.0, posinf=0.0)
+        self.hop_dist = tf.constant(hop_matrix, dtype=tf.float32)  # shape [N, N]
+        # -----------------------------------
+    @tf.function(jit_compile=True)
+    def _get_dist_to_dst(self):
+        # Lấy khoảng cách từ curr_node đến dst_node cho từng batch
+        # curr_node, dst: [B]
+        dist = tf.gather(self.hop_dist, self.curr_node, axis=0)  # [B, N]
+        dist = tf.gather(dist, self.dst, axis=1, batch_dims=1)   # [B]
+        return dist
     def reset_all_bandwidth(self):
         """ Reset vật lý toàn bộ mạng """
         self.current_bw_matrix.assign(self.max_capacity)
@@ -112,6 +131,8 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
     @tf.function(jit_compile=True)
     def step(self, actions):
         """ actions shape: [B] """
+        # ---- Lưu khoảng cách cũ ----
+        old_dist = self._get_dist_to_dst()   # [B]
         actions = tf.cast(actions, tf.int32)
         old_state = self._get_state_dict()
         old_valid_mask = old_state['valid_mask']
@@ -138,6 +159,8 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         # Đánh dấu Visited và Cập nhật curr_node
         self.visited = self.visited | tf.cast(action_one_hot, tf.bool)
         self.curr_node = actions
+
+        new_dist = self._get_dist_to_dst()   # [B]
         # 3. KIỂM TRA PHẦN THƯỞNG VÀ ĐIỀU KIỆN DỪNG
         next_state = self._get_state_dict()
         next_valid_mask = next_state['valid_mask']
@@ -148,8 +171,13 @@ class BatchedGpuQoSRoutingEnv(tf.Module):
         dones = is_success | is_deadend
         jain_score = self._calculate_jain_index()
         
-        rewards = tf.where(is_success, 3.0 + jain_score,
-                  tf.where(is_deadend, -3.0 + jain_score, 0.0))
+        rewards = tf.where(is_success, 3.0 + 2*jain_score,
+                  tf.where(is_deadend, -3.0 + 2*jain_score, 0.0))
+        closer = new_dist < old_dist          # tiến gần đích
+        farther = new_dist > old_dist         # đi xa đích
+        shaping = tf.where(closer, 0.02, tf.where(farther, -0.02, 0.0))
+        rewards = rewards + shaping
+        
         # 4. CẬP NHẬT FAIL_COUNT VÀ CHECK HARD RESET
         # Logic: Nếu DeadEnd thì +1, nếu Success thì reset về 0, nếu đang đi (In_Progress) thì giữ nguyên
         updated_fail_count = tf.where(is_deadend, self.fail_count + 1.0,

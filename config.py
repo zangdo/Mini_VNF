@@ -21,7 +21,7 @@ class Config:
     LR = 3e-4
     GAMMA = 0.99
     LAMBDA = 0.95
-    CLIP_RATIO = 0.2
+    CLIP_RATIO = 0.5
     TEST_PER_UPDATE_STEP = 50
     MODEL_SAVE_PER_UPDATE_STEP = 50
     # --- ĐIỀU KIỆN MÔI TRƯỜNG ---
